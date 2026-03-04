@@ -21,19 +21,19 @@
 #-renamesourcefileattribute SourceFile
 
 # ViewModel
--keep class io.github.mwarevn.movingsimulation.ui.viewmodel.MainViewModel{*;}
--keepnames class io.github.mwarevn.movingsimulation.ui.viewmodel.MainViewModel.**
+-keep class io.github.mwarevn.fakegps.ui.viewmodel.MainViewModel{*;}
+-keepnames class io.github.mwarevn.fakegps.ui.viewmodel.MainViewModel.**
 
 # Xposed
--keep class io.github.mwarevn.movingsimulation.xposed.Xshare{*;}
--keep class io.github.mwarevn.movingsimulation.xposed.HookEntry{*;}
+-keep class io.github.mwarevn.fakegps.xposed.Xshare{*;}
+-keep class io.github.mwarevn.fakegps.xposed.HookEntry{*;}
 -keep class de.robv.android.xposed.**{*;}
 -keepnames class de.robv.android.xposed.**
 
 # Retrofit - Keep all network models and services
--keep class io.github.mwarevn.movingsimulation.network.** { *; }
--keepnames class io.github.mwarevn.movingsimulation.network.**
--keepclassmembers class io.github.mwarevn.movingsimulation.network.** { *; }
+-keep class io.github.mwarevn.fakegps.network.** { *; }
+-keepnames class io.github.mwarevn.fakegps.network.**
+-keepclassmembers class io.github.mwarevn.fakegps.network.** { *; }
 
 # Retrofit generic signatures (fixes ClassCastException)
 -keepattributes Signature
@@ -70,13 +70,13 @@
 -keep,allowobfuscation,allowshrinking class * extends com.google.gson.reflect.TypeToken
 
 # Keep data classes for network responses (critical for Retrofit deserialization)
--keep class io.github.mwarevn.movingsimulation.network.MapBoxDirectionsResponse { *; }
--keep class io.github.mwarevn.movingsimulation.network.MapBoxRoute { *; }
--keep class io.github.mwarevn.movingsimulation.network.MapBoxLeg { *; }
--keep class io.github.mwarevn.movingsimulation.network.OsrmRouteResponse { *; }
--keep class io.github.mwarevn.movingsimulation.network.OsrmRoute { *; }
--keep class io.github.mwarevn.movingsimulation.network.RoutingResult { *; }
--keep class io.github.mwarevn.movingsimulation.network.VehicleType { *; }
+-keep class io.github.mwarevn.fakegps.network.MapBoxDirectionsResponse { *; }
+-keep class io.github.mwarevn.fakegps.network.MapBoxRoute { *; }
+-keep class io.github.mwarevn.fakegps.network.MapBoxLeg { *; }
+-keep class io.github.mwarevn.fakegps.network.OsrmRouteResponse { *; }
+-keep class io.github.mwarevn.fakegps.network.OsrmRoute { *; }
+-keep class io.github.mwarevn.fakegps.network.RoutingResult { *; }
+-keep class io.github.mwarevn.fakegps.network.VehicleType { *; }
 
 -repackageclasses
 -allowaccessmodification

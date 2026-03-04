@@ -1,0 +1,33 @@
+package io.github.mwarevn.fakegps
+
+import androidx.appcompat.app.AppCompatDelegate
+import android.app.Application
+import com.google.android.material.color.DynamicColors
+import dagger.hilt.android.HiltAndroidApp
+import io.github.mwarevn.fakegps.utils.PrefManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import timber.log.Timber
+
+lateinit var gsApp: App
+
+@HiltAndroidApp
+class App : Application() {
+    val globalScope = CoroutineScope(Dispatchers.Default)
+
+    companion object {
+        fun commonInit() {
+            if (BuildConfig.DEBUG) {
+                Timber.plant(Timber.DebugTree())
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        gsApp = this
+        DynamicColors.applyToActivitiesIfAvailable(this)
+        commonInit()
+        AppCompatDelegate.setDefaultNightMode(PrefManager.darkTheme)
+    }
+}

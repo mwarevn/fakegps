@@ -1,102 +1,58 @@
-# GPS Setter
+# Fake GPS: Fake GPS Navigation & Joystick 📍🚀
 
-[![Stars](https://img.shields.io/github/stars/minhdevs/android-gps-moving-simulation)](https://github.com/minhdevs/android-gps-moving-simulation/stargazers)
-[![LSPosed](https://img.shields.io/github/downloads/Xposed-Modules-Repo/io.github.mwarevn.movingsimulation/total?label=LSPosed&logo=Android&style=flat&labelColor=F48FB1&logoColor=ffffff)](https://github.com/Xposed-Modules-Repo/io.github.mwarevn.movingsimulation/releases)
-[![GitHub](https://img.shields.io/github/downloads/minhdevs/android-gps-moving-simulation/total?label=GitHub&logo=GitHub)](https://github.com/minhdevs/android-gps-moving-simulation/releases)
-[![release](https://img.shields.io/github/v/release/minhdevs/android-gps-moving-simulation)](https://github.com/minhdevs/android-gps-moving-simulation/releases)
-[![build](https://img.shields.io/github/actions/workflow/status/minhdevs/android-gps-moving-simulation/apk.yml)](https://github.com/minhdevs/android-gps-moving-simulation/actions/workflows/apk.yml)
-[![license](https://img.shields.io/github/license/minhdevs/android-gps-moving-simulation)](https://github.com/minhdevs/android-gps-moving-simulation/blob/master/LICENSE)
-[![issues](https://img.shields.io/github/issues/minhdevs/android-gps-moving-simulation)](https://github.com/minhdevs/android-gps-moving-simulation/issues)
+**Fake GPS: Fake GPS Navigation & Joystick** is a powerful Android application that allows you to change your device's GPS location flexibly. Beyond simple static spoofing, it supports manual movement via a Joystick and, most importantly, a sophisticated **Navigation Simulation** mode.
 
-A GPS setter based on the Xposed framework. This fork is the first module to achieve support for Android 15+ with its sources available.
+---
 
-## Releases
+## 🌟 Key Features
 
-<table>
-    <tr>
-        <th>Version</th>
-        <th>app-full-*.apk</th>
-        <th>app-foss-*.apk</th>
-    </tr>
-    <tr>
-        <th>Maps Library</th>
-        <td>GMS (com.google.android.gms:play-services-maps)</td>
-        <td>MapLibre (org.maplibre.gl:android-sdk)</td>
-    </tr>
-    <tr>
-        <th>Fused Location</th>
-        <td>GMS (com.google.android.gms:play-services-location)</td>
-        <td>microG (org.microg.gms:play-services-location)</td>
-    </tr>
-    <tr>
-        <th>Distribution</th>
-        <td>
-            <a href="https://github.com/minhdevs/android-gps-moving-simulation/releases">
-                <img
-                    src="https://raw.githubusercontent.com/NeoApplications/Neo-Backup/refs/heads/main/badge_github.png"
-                    alt="Get it on GitHub" width="200" />
-            </a>
-        </td>
-        <td>
-            <a href="https://f-droid.org/packages/io.github.mwarevn.movingsimulation">
-                <img
-                    src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
-                    alt="Get it on F-Droid" width="200" />
-            </a>
-        </td>
-    </tr>
-</table>
+### 🗺️ 1. Navigation Simulation (New - Developed by @mwarevn)
+This is the core feature that sets this app apart from standard Fake GPS tools:
+- **Destination Search:** Enter any address, and the app will find the optimal real-world route.
+- **Realistic Movement:** The GPS automatically travels along actual roads as if you were driving or walking.
+- **Customizable Speed:** Adjust your travel speed on the fly while navigation is active.
+- **Auto-Curve Speed Reduction:** A smart algorithm that automatically slows down during sharp turns to mimic natural driving behavior and bypass anti-cheat systems.
 
-<!--
-[<img src="https://raw.githubusercontent.com/NeoApplications/Neo-Backup/refs/heads/main/badge_github.png" alt="Get it on GitHub" height="80">](https://github.com/minhdevs/android-gps-moving-simulation/releases)
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80">]()
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" height="80">]()
--->
+### 🕹️ 2. Joystick Control
+- Move your spoofed location in any direction using an on-screen virtual joystick.
+- Customize joystick sensitivity and movement speed.
+- Works seamlessly across map applications and location-based games.
 
-## Motivation
+### 📍 3. Static Location Spoofing
+- Select any point on Google Maps and "stay" there with just one tap.
 
-An increasing number of apps are abusing the location permission for tracking purposes, preventing the user from using the app without granting the permission. Traditionally on Android, modifying the response from android server is done using the mock location provider - however, the availability of this feature is device dependent. Additionally, some apps have started explicitly checking for signals regarding whether the location provided is reliable. This module aims to mitigate this by providing an ability to either,
+### 🛠️ 4. Advanced Support
+- **Xposed/LSPosed Integration:** Deep system-level spoofing for better reliability and bypass capability.
+- **Favorites:** Save your most-used locations or routes for quick access.
+- **Movement History:** Keep track of the places you've "visited."
 
-1. hook the app itself to modify the location it receives, or
-2. hook the system server if the app explicitly checks for whether itself is being hooked
+---
 
-Specifically, in the case of hooking just the app, it intercepts [`android.location.Location`](https://developer.android.com/reference/android/location/Location) and [`android.location.LocationManager`](https://developer.android.com/reference/android/location/LocationManager) methods including
+## 🚀 Installation
 
--   [`getLatitude()`](<https://developer.android.com/reference/android/location/Location#getLatitude()>)
--   [`getLongitude()`](<https://developer.android.com/reference/android/location/Location#getLongitude()>)
--   [`getAccuracy()`](<https://developer.android.com/reference/android/location/Location#getAccuracy()>)
--   [`getLastKnownLocation(java.lang.String)`](<https://developer.android.com/reference/android/location/LocationManager#getLastKnownLocation(java.lang.String)>)
+1. Download the latest APK from the [Releases](https://github.com/mwarevn/android-gps-moving-simulation/releases) section.
+2. Enable "Install from Unknown Sources" on your device.
+3. In **Developer Options**, set this app as the **Mock location app**.
+4. (Optional) Activate the module in Xposed/LSPosed for the best experience.
 
-## Compatibility
+---
 
--   Android 8.1+ (tested up to Android 16 Beta 2)
--   Rooted devices with Xposed framework installed (e.g. LSPosed)
--   Unrooted devices with LSPatch (with manually embedded specified location)
+## 📝 Credits & Acknowledgments
 
-## Features
+This project is a fork and enhancement of:
+- **GPS Setter**: The original project that provided the foundational Fake GPS and Joystick features. Many thanks to the original author for sharing their open-source code.
 
--   🚗 **Moving Simulation** - Simulate realistic GPS movement along routes with adjustable speed (1-120 km/h)
--   🗺️ **Route Planning** - Plan routes with multiple waypoints and follow them automatically
--   ⏯️ **Playback Controls** - Pause, resume, and stop navigation with real-time progress tracking
--   📊 **Distance & Time Tracking** - Monitor traveled distance and remaining route in real-time
--   ✨ Supports system server location APIs introduced in Android 14+
--   🍀 Supports a fully FLOSS build flavor - including all underlying dependencies
--   🖲️ Allows adjusting location on the fly via an on-screen joystick overlay with screen-relative movement
--   🎯 Quick replace location button - change fake GPS location instantly without unset/set
--   🎨 Enhanced fake location indicator with larger, more visible markers
--   👆 Drag & drop support for destination marker in search mode for precise positioning
--   🔄 Real-time GPS position updates even when app is in background
--   📍 Joystick movements follow screen orientation, not compass direction
--   🎉 Features custom designed resource bundles with updated dependent libraries
--   🎲 Allows using a live updating random location in the vicinity of the set point
--   🔥 Compatible with latest Material Design
+**Developed and Enhanced by @mwarevn:**
+- Redesigned the UI for a modern, clean user experience.
+- Developed the entire **Navigation Simulation** feature (route-based movement).
+- Optimized movement algorithms and real-time speed synchronization.
 
-## Demo
+---
 
-<video loop src='https://github.com/user-attachments/assets/388ac05c-db56-42ce-9253-2f1855800a5c' alt="demo" width="200" style="display: block; margin: auto;"></video> <!-- https://github.com/minhdevs/android-gps-moving-simulation/releases/download/v0.0.1/0.mp4 -->
+## ⚠️ Disclaimer
+This application is intended for testing and development purposes only. We are not responsible for any misuse that violates the terms of service of third-party applications.
 
-## Credits
+---
 
--   [Android1500](https://github.com/Android1500/GpsSetter) for the original GpsSetter targeting Android 8.1 to 13
--   [MapLibre](https://github.com/maplibre/maplibre-native) for the mapping library
--   [microG](https://github.com/microg/GmsCore) for the FOSS implementation of Google Mobile Services
+## 📄 License
+This project is released under the [MIT License](LICENSE).

@@ -46,10 +46,6 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDJHl2fdyya0PuEY-LRFUZM71pijfZN6IE" />
 
-        <meta-data
-            android:name="com.maplibre.AccessToken"
-            android:value="" />
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

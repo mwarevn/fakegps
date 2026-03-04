@@ -24,18 +24,20 @@ sleep 4
 sed -i '' "s/def tagName = '.*'/def tagName = '$VERSION_NAME'/" app/build.gradle
 sed -i '' "s/versionCode [0-9]*/versionCode $VERSION_CODE/" app/build.gradle
 
-# Build release APK for full flavor
-echo "Building release APK for full flavor..."
+# Build release APK (No flavor, just release)
+echo "Building release APK..."
 ./gradlew assembleRelease
 
 # Check if build was successful
-if [ ! -f "app/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk" ]; then
+# Path changes from outputs/apk/full/release to outputs/apk/release
+APK_PATH="app/build/outputs/apk/release/app-arm64-v8a-release.apk"
+if [ ! -f "$APK_PATH" ]; then
   echo "Error: APK build failed!"
   exit 1
 fi
 
 echo "Build successful!"
-echo "APK location: app/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk"
+echo "APK location: $APK_PATH"
 
 # Commit and tag
 git add app/build.gradle
@@ -46,11 +48,11 @@ git push origin $VERSION_STRING
 
 echo ""
 echo "✅ Release completed!"
-echo "📦 APK: app/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk"
+echo "📦 APK: $APK_PATH"
 echo "🏷️  Tag: $VERSION_STRING"
 echo ""
 echo "Next steps:"
-echo "1. Go to: https://github.com/minhdevs/android-gps-moving-simulation/releases/new"
+echo "1. Go to: https://github.com/mwarevn/fake-gps/releases/new"
 echo "2. Select tag: $VERSION_STRING"
-echo "3. Upload APK: app/build/outputs/apk/full/release/app-full-arm64-v8a-release.apk"
+echo "3. Upload APK: $APK_PATH"
 echo "4. Publish release"
