@@ -1,64 +1,96 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:layout_height="wrap_content">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="MapBox API Key (Tùy chọn)"
-        android:textStyle="bold"
-        android:textSize="14sp"
-        android:layout_marginBottom="8dp" />
+        android:orientation="vertical"
+        android:padding="20dp">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Để trống = OSRM miễn phí\nCó key = MapBox chính xác hơn (100k free/tháng)"
-        android:textSize="12sp"
-        android:textColor="#666666"
-        android:layout_marginBottom="8dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cài đặt tìm đường"
+            android:textAppearance="?attr/textAppearanceTitleLarge"
+            android:layout_marginBottom="16dp" />
 
-    <EditText
-        android:id="@+id/api_key_input"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="pk.eyJ1IjoieW91ci11c2VybmFtZSIsImEiOiJ..."
-        android:inputType="text"
-        android:maxLines="3"
-        android:textSize="13sp"
-        android:layout_marginBottom="16dp" />
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/api_key_layout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="MapBox API Key (Tùy chọn)"
+            app:helperText="Để trống = OSRM miễn phí"
+            android:layout_marginBottom="12dp">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Hướng dẫn lấy key:"
-        android:textStyle="bold"
-        android:textSize="12sp"
-        android:layout_marginBottom="4dp" />
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/api_key_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textMultiLine"
+                android:maxLines="3"
+                android:textSize="14sp" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="1. Truy cập https://account.mapbox.com\n2. Đăng ký tài khoản (miễn phí)\n3. Tạo Access Token\n4. Copy và paste vào đây"
-        android:textSize="11sp"
-        android:textColor="#666666"
-        android:layout_marginBottom="24dp" />
+        </com.google.android.material.textfield.TextInputLayout>
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Loại phương tiện"
-        android:textStyle="bold"
-        android:textSize="14sp"
-        android:layout_marginBottom="8dp" />
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            app:cardCornerRadius="12dp"
+            app:strokeWidth="0dp"
+            app:cardBackgroundColor="?attr/colorTertiaryContainer">
 
-    <Spinner
-        android:id="@+id/vehicle_type_spinner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
 
-</LinearLayout>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Hướng dẫn:"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="4dp"
+                    android:textColor="?attr/colorOnTertiaryContainer" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="1. Truy cập account.mapbox.com\n2. Đăng ký &amp; tạo Access Token\n3. Copy và paste vào đây"
+                    android:textSize="11sp"
+                    android:alpha="0.8"
+                    android:textColor="?attr/colorOnTertiaryContainer" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Loại phương tiện"
+            android:textAppearance="?attr/textAppearanceLabelLarge"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:strokeWidth="0dp"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant">
+
+            <Spinner
+                android:id="@+id/vehicle_type_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+</ScrollView>

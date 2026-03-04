@@ -20,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.mwarevn.movingsimulation.BuildConfig
 import io.github.mwarevn.movingsimulation.R
+import io.github.mwarevn.movingsimulation.network.StatusService
 import io.github.mwarevn.movingsimulation.repository.FavoriteRepository
 import io.github.mwarevn.movingsimulation.room.Favorite
 import io.github.mwarevn.movingsimulation.update.UpdateChecker
@@ -42,13 +43,15 @@ class MainViewModel @Inject constructor(
     private val prefManger: PrefManager,
     private val checkUpdates: UpdateChecker,
     private val downloadManager: DownloadManager,
+    private val statusService: StatusService,
     @ApplicationContext context: Context
 ) : ViewModel() {
 
-    val getLat  = prefManger.getLat
-    val getLng  = prefManger.getLng
-    val isStarted = prefManger.isStarted
-    val mapType = prefManger.mapType
+    // FIX: Change these to dynamic getters so they always return fresh values from PrefManager
+    val getLat: Double get() = prefManger.getLat
+    val getLng: Double get() = prefManger.getLng
+    val isStarted: Boolean get() = prefManger.isStarted
+    val mapType: Int get() = prefManger.mapType
 
 
     private val _allFavList = MutableStateFlow<List<Favorite>>(emptyList())
@@ -79,10 +82,15 @@ class MainViewModel @Inject constructor(
     }
 
     val isXposed = MutableLiveData<Boolean>(true)
+    
+    // Method to check if module is active (will be hooked by Xposed)
+    fun isModuleActive(): Boolean {
+        return false
+    }
+
     fun updateXposedState() {
         onMain {
-            // isXposed.value = YukiHookAPI.Status.isModuleActive
-            isXposed.value = false
+            isXposed.value = isModuleActive()
         }
     }
 
@@ -123,6 +131,44 @@ class MainViewModel @Inject constructor(
     private var _downloadState = MutableStateFlow<State>(State.Idle)
     private var downloadFile: File? = null
     val downloadState = _downloadState.asStateFlow()
+
+    private val _appStatus = MutableStateFlow<AppStatus>(AppStatus.Checking)
+    val appStatus: StateFlow<AppStatus> = _appStatus.asStateFlow()
+
+    sealed class AppStatus {
+        object Checking : AppStatus()
+        object Allowed : AppStatus()
+        data class Disallowed(val message: String?) : AppStatus()
+        object NoInternet : AppStatus()
+        data class Error(val message: String?) : AppStatus()
+    }
+
+    fun checkAppStatus() {
+        viewModelScope.launch {
+            _appStatus.value = AppStatus.Checking
+            try {
+                val response = statusService.getStatus()
+                if (response.isNotEmpty()) {
+                    val status = response[0].status
+                    if (status.equals("new", ignoreCase = true)) {
+                        _appStatus.value = AppStatus.Allowed
+                    } else {
+                        _appStatus.value = AppStatus.Allowed
+                       // _appStatus.value = AppStatus.Disallowed("App version is old and no longer supported.")
+                    }
+                } else {
+                    _appStatus.value = AppStatus.Error("Empty response from server")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Error checking app status")
+                _appStatus.value = AppStatus.Error(e.message)
+            }
+        }
+    }
+    
+    fun setNoInternetStatus() {
+        _appStatus.value = AppStatus.NoInternet
+    }
 
 
     // Got idea from https://github.com/KieronQuinn/DarQ for Check Update

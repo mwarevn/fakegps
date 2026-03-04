@@ -37,11 +37,31 @@ class HookEntry : IXposedHookLoadPackage {
             return
         }
 
-        // For all other apps (including banking apps)
-        // Initialize anti-detection hooks FIRST to hide our presence
-        AntiDetection.initAntiDetection(lpparam)
-
         // Then initialize location hooks at app level (safe, no system hook)
         LocationHook.initHooks(lpparam)
     }
+
+//    override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
+//        // Hook our own app to indicate module is active
+//        if (lpparam.packageName == BuildConfig.APPLICATION_ID) {
+//            try {
+//                XposedHelpers.findAndHookMethod(
+//                    "io.github.mwarevn.movingsimulation.ui.viewmodel.MainViewModel",
+//                    lpparam.classLoader,
+//                    "isModuleActive",
+//                    object : XC_MethodHook() {
+//                        override fun beforeHookedMethod(param: MethodHookParam) {
+//                            param.result = true
+//                        }
+//                    }
+//                )
+//            } catch (e: Throwable) {
+//                XposedBridge.log("Failed to hook MainViewModel: ${e.message}")
+//            }
+//            return
+//        }
+//
+//        // Hook location for system and apps
+//        LocationHook.initHooks(lpparam)
+//    }
 }

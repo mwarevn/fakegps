@@ -2,17 +2,20 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:background="?android:attr/colorBackground">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:fitsSystemWindows="true">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Advanced Anti-Detection"
+            app:title="Anti-Detection"
             app:navigationIcon="?attr/homeAsUpIndicator" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -26,130 +29,187 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:padding="20dp">
 
             <!-- Information Card -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardBackgroundColor="#E3F2FD"
-                app:cardElevation="2dp">
+                android:layout_marginBottom="24dp"
+                app:cardCornerRadius="24dp"
+                app:strokeWidth="0dp"
+                app:cardBackgroundColor="?attr/colorTertiaryContainer">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="20dp">
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="🚀 Advanced Features"
-                        android:textColor="#1565C0"
-                        android:textSize="16sp"
+                        android:text="🚀 Tính năng nâng cao"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textColor="?attr/colorOnTertiaryContainer"
                         android:textStyle="bold" />
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="Enable advanced features to maximize GPS spoofing realism and bypass sophisticated detection.\n\nTap each switch to see detailed information.\n\nChanges require restarting the target app."
-                        android:textColor="#424242"
-                        android:textSize="14sp" />
+                        android:text="Bật các tính năng này để tối ưu việc mô phỏng GPS và vượt qua các hệ thống phát hiện tinh vi.\n\nThay đổi yêu cầu khởi động lại ứng dụng mục tiêu."
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/colorOnTertiaryContainer"
+                        android:alpha="0.8" />
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Advanced Features -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:text="Advanced Anti-Detection Features"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:layout_marginBottom="12dp"
+                android:text="Cài đặt mô phỏng"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/colorPrimary" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                app:cardBackgroundColor="?attr/colorPrimaryContainer">
+                app:cardCornerRadius="24dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="?attr/colorSurface">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="12dp">
+                    android:padding="8dp">
 
-                    <androidx.appcompat.widget.SwitchCompat
-                        android:id="@+id/switchSensorSpoof"
+                    <!-- Sensor Spoof -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Sensor Spoofing"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="12dp">
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Sensor Spoofing"
+                                android:textAppearance="?attr/textAppearanceBodyLarge"
+                                android:textStyle="bold"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Đồng bộ cảm biến với GPS"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:alpha="0.7"/>
+                        </LinearLayout>
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchSensorSpoof"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
 
-                    <TextView
+                    <com.google.android.material.divider.MaterialDivider
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:layout_marginBottom="12dp"
-                        android:text="Synchronize accelerometer, gyroscope, magnetometer with GPS"
-                        android:textSize="12sp"
-                        android:alpha="0.7" />
+                        android:layout_marginStart="12dp"
+                        android:layout_marginEnd="12dp"/>
 
-                    <androidx.appcompat.widget.SwitchCompat
-                        android:id="@+id/switchNetworkSimulation"
+                    <!-- Network Simulation -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Network Simulation"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="12dp">
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Network Simulation"
+                                android:textAppearance="?attr/textAppearanceBodyLarge"
+                                android:textStyle="bold"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Giả lập trạm phát sóng &amp; WiFi"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:alpha="0.7"/>
+                        </LinearLayout>
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchNetworkSimulation"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
 
-                    <TextView
+                    <com.google.android.material.divider.MaterialDivider
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:layout_marginBottom="12dp"
-                        android:text="Fake cell tower and WiFi data matching GPS location"
-                        android:textSize="12sp"
-                        android:alpha="0.7" />
+                        android:layout_marginStart="12dp"
+                        android:layout_marginEnd="12dp"/>
 
-                    <androidx.appcompat.widget.SwitchCompat
-                        android:id="@+id/switchAdvancedRandomization"
+                    <!-- Advanced Randomization -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Advanced Randomization"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Add realistic variations to resist ML detection"
-                        android:textSize="12sp"
-                        android:alpha="0.7" />
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="12dp">
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Advanced Randomization"
+                                android:textAppearance="?attr/textAppearanceBodyLarge"
+                                android:textStyle="bold"/>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Tạo biến động thực tế để chống ML"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:alpha="0.7"/>
+                        </LinearLayout>
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchAdvancedRandomization"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
 
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Reset Button -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnResetToDefault"
+                style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="16dp"
-                android:text="Reset to Default (All Disabled)"
-                android:textAllCaps="false"
-                app:icon="@android:drawable/ic_menu_revert"
-                app:iconGravity="start" />
+                android:layout_height="56dp"
+                android:layout_marginTop="32dp"
+                android:text="Khôi phục mặc định"
+                app:icon="@drawable/ic_restart"
+                app:cornerRadius="28dp"
+                android:textColor="?attr/colorError"
+                app:strokeColor="?attr/colorError"
+                app:iconTint="?attr/colorError"/>
 
         </LinearLayout>
 

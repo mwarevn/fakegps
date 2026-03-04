@@ -69,19 +69,6 @@ android {
         buildConfig true
     }
 
-    flavorDimensions += "version"
-    productFlavors {
-        foss {
-            dimension "version"
-            // versionNameSuffix "-foss"
-            isDefault true
-        }
-        full {
-            dimension "version"
-            versionNameSuffix "-full"
-        }
-    }
-
     namespace 'io.github.mwarevn.movingsimulation'
 }
 
@@ -92,14 +79,8 @@ dependencies {
     compileOnly 'com.github.deltazefiro:XposedBridge:main-SNAPSHOT'
     implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:4.3'
 
-    // use microg (apache 2.0) and maplibre (bsd 2-clause)
-    fossImplementation 'org.microg.gms:play-services-location:0.3.6.244735'
-    fossImplementation ('org.maplibre.gl:android-sdk:11.8.2')
-    /* {
-        exclude group: 'com.google.android.gms'
-    } */
-    fullImplementation 'com.google.android.gms:play-services-location:21.0.1'
-    fullImplementation 'com.google.android.gms:play-services-maps:18.1.0'
+    implementation 'com.google.android.gms:play-services-location:21.0.1'
+    implementation 'com.google.android.gms:play-services-maps:18.1.0'
 
 
     implementation 'androidx.core:core-ktx:1.9.0'

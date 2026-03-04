@@ -7,21 +7,19 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.location.Address
-import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -36,7 +34,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.*
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.elevation.ElevationOverlayProvider
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.mwarevn.movingsimulation.BuildConfig
@@ -45,15 +42,11 @@ import io.github.mwarevn.movingsimulation.adapter.FavListAdapter
 import io.github.mwarevn.movingsimulation.databinding.ActivityMapBinding
 import io.github.mwarevn.movingsimulation.ui.viewmodel.MainViewModel
 import io.github.mwarevn.movingsimulation.utils.JoystickService
+import io.github.mwarevn.movingsimulation.utils.NetworkUtils
 import io.github.mwarevn.movingsimulation.utils.NotificationsChannel
 import io.github.mwarevn.movingsimulation.utils.PrefManager
 import io.github.mwarevn.movingsimulation.utils.ext.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.callbackFlow
-import java.io.IOException
-import java.util.regex.Matcher
-import java.util.regex.Pattern
 import kotlin.properties.Delegates
 
 @AndroidEntryPoint
@@ -63,50 +56,85 @@ abstract class BaseMapActivity: AppCompatActivity() {
     protected var lon by Delegates.notNull<Double>()
     protected val viewModel by viewModels<MainViewModel>()
     protected val binding by lazy { ActivityMapBinding.inflate(layoutInflater) }
-    protected lateinit var alertDialog: MaterialAlertDialogBuilder
-    protected lateinit var dialog: AlertDialog
-    protected val update by lazy { viewModel.getAvailableUpdate() }
-
+    
     private val notificationsChannel by lazy { NotificationsChannel() }
-    private var favListAdapter: FavListAdapter = FavListAdapter()
+    private val favListAdapter = FavListAdapter()
     private var xposedDialog: AlertDialog? = null
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private val PERMISSION_ID = 42
-
-    private val elevationOverlayProvider by lazy {
-        ElevationOverlayProvider(this)
-    }
-
-    private val headerBackground by lazy {
-        elevationOverlayProvider.compositeOverlayWithThemeSurfaceColorIfNeeded(
-            resources.getDimension(R.dimen.bottom_sheet_elevation)
-        )
-    }
+    protected lateinit var fusedLocationClient: FusedLocationProviderClient
+    
+    protected val PERMISSION_ID = 42
 
     protected abstract fun getActivityInstance(): BaseMapActivity
     protected abstract fun hasMarker(): Boolean
     protected abstract fun initializeMap()
     protected abstract fun setupButtons()
-    protected abstract fun moveMapToNewLocation(moveNewLocation: Boolean)
+    protected abstract fun moveMapToNewLocation(moveNewLocation: Boolean, shouldMark: Boolean = false)
 
+    @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT))
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        lifecycleScope.launchWhenCreated {
-            setContentView(binding.root)
-        }
+        setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
+        
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        
+        // Initialize default coordinates (Hanoi)
+        lat = 21.0285
+        lon = 105.8542
+        
         initializeMap()
+        observeAppStatus()
+        checkAppAvailability()
         checkModuleEnabled()
         checkUpdates()
         setupNavView()
         setupButtons()
         setupDrawer()
+        
         if (PrefManager.isJoystickEnabled){
             startService(Intent(this, JoystickService::class.java))
         }
+    }
+
+    private fun checkAppAvailability() {
+        if (!NetworkUtils.isNetworkAvailable(this)) {
+            viewModel.setNoInternetStatus()
+        } else {
+            viewModel.checkAppStatus()
+        }
+    }
+
+    private fun observeAppStatus() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.appStatus.collect { status ->
+                    when (status) {
+                        is MainViewModel.AppStatus.Disallowed -> {
+                            showExitDialog("Phiên bản cũ", status.message ?: "Ứng dụng này không còn được hỗ trợ.")
+                        }
+                        is MainViewModel.AppStatus.NoInternet -> {
+                            showExitDialog("Không có internet", "Vui lòng kiểm tra kết nối internet để sử dụng ứng dụng.")
+                        }
+                        else -> { /* Checking, Allowed, Error handled silently */ }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showExitDialog(title: String, message: String) {
+        if (isFinishing) return
+        MaterialAlertDialogBuilder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setCancelable(false)
+            .setPositiveButton("Thoát") { _, _ ->
+                finishAffinity()
+            }
+            .show()
     }
 
     private fun setupDrawer() {
@@ -128,73 +156,24 @@ abstract class BaseMapActivity: AppCompatActivity() {
                 invalidateOptionsMenu()
             }
         }
-        binding.container.setDrawerListener(mDrawerToggle)
+        binding.container.addDrawerListener(mDrawerToggle)
+        mDrawerToggle.syncState()
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun setupNavView() {
-
         binding.mapContainer.map.setOnApplyWindowInsetsListener { _, insets ->
-            val topInset: Int = insets.systemWindowInsetTop
-            val bottomInset: Int = insets.systemWindowInsetBottom
-            binding.navView.setPadding(0,topInset,0,0)
-            insets.consumeSystemWindowInsets()
+            val systemInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            binding.navView.setPadding(0, systemInsets.top, 0, 0)
+            insets
         }
-
-        // NOTE: Search functionality moved to MapActivity implementation
-        // Commented out old search box references as we redesigned the UI
-        /*
-        val progress = binding.search.searchProgress
-        binding.search.searchBox.setOnEditorActionListener { v, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                if (isNetworkConnected()) {
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        val getInput = v.text.toString()
-                        if (getInput.isNotEmpty()){
-                            getSearchAddress(getInput).let {
-                                it.collect { result ->
-                                    when(result) {
-                                        is SearchProgress.Progress -> {
-                                            progress.visibility = View.VISIBLE
-                                        }
-                                        is SearchProgress.Complete -> {
-                                            progress.visibility = View.GONE
-                                            lat = result.lat
-                                            lon = result.lon
-                                            moveMapToNewLocation(true)
-                                        }
-                                        is SearchProgress.Fail -> {
-                                            progress.visibility = View.GONE
-                                            showToast(result.error!!)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    showToast(getString(R.string.no_internet))
-                }
-                return@setOnEditorActionListener true
-            }
-            return@setOnEditorActionListener false
-        }
-        */
 
         binding.navView.setNavigationItemSelectedListener {
             when(it.itemId){
-                R.id.routing_settings -> {
-                    // Open routing settings dialog - no toast needed, user can see the dialog
-                    RoutingSettingsDialog.show(this) { }
-                }
-                R.id.get_favorite -> {
-                    openFavoriteListDialog()
-                }
-                R.id.settings -> {
-                    startActivity(Intent(this,ActivitySettings::class.java))
-                }
-                R.id.about -> {
-                    aboutDialog()
-                }
+                R.id.routing_settings -> RoutingSettingsDialog.show(this)
+                R.id.get_favorite -> openFavoriteListDialog()
+                R.id.settings -> startActivity(Intent(this,ActivitySettings::class.java))
+                R.id.about -> aboutDialog()
             }
             binding.container.closeDrawer(GravityCompat.START)
             true
@@ -204,15 +183,12 @@ abstract class BaseMapActivity: AppCompatActivity() {
     private fun checkModuleEnabled(){
         viewModel.isXposed.observe(this) { isXposed ->
             xposedDialog?.dismiss()
-            xposedDialog = null
             if (!isXposed) {
-                xposedDialog = MaterialAlertDialogBuilder(this).run {
-                    setTitle(R.string.error_xposed_module_missing)
-                    setMessage(R.string.error_xposed_module_missing_desc)
-                    // setCancelable(BuildConfig.DEBUG)
-                    setCancelable(true)
-                    show()
-                }
+                xposedDialog = MaterialAlertDialogBuilder(this)
+                    .setTitle(R.string.error_xposed_module_missing)
+                    .setMessage(R.string.error_xposed_module_missing_desc)
+                    .setCancelable(true)
+                    .show()
             }
         }
     }
@@ -223,169 +199,140 @@ abstract class BaseMapActivity: AppCompatActivity() {
     }
 
     protected fun aboutDialog(){
-        alertDialog = MaterialAlertDialogBuilder(this)
-        layoutInflater.inflate(R.layout.about,null).apply {
-            val  titlele = findViewById<TextView>(R.id.design_about_title)
-            val  version = findViewById<TextView>(R.id.design_about_version)
-            val  info = findViewById<TextView>(R.id.design_about_info)
-            titlele.text = getString(R.string.app_name)
-            version.text = BuildConfig.VERSION_NAME
-            info.text = getString(R.string.about_info)
-        }.run {
-            alertDialog.setView(this)
-            alertDialog.show()
+        MaterialAlertDialogBuilder(this).apply {
+            val view = layoutInflater.inflate(R.layout.about, null)
+            view.findViewById<TextView>(R.id.design_about_title).text = getString(R.string.app_name)
+            view.findViewById<TextView>(R.id.design_about_version).text = BuildConfig.VERSION_NAME
+            view.findViewById<TextView>(R.id.design_about_info).text = getString(R.string.about_info)
+            setView(view)
+            show()
         }
     }
 
     protected fun addFavoriteDialog() {
-        alertDialog =  MaterialAlertDialogBuilder(this).apply {
-            val view = layoutInflater.inflate(R.layout.dialog,null)
+        MaterialAlertDialogBuilder(this).apply {
+            val view = layoutInflater.inflate(R.layout.dialog, null)
             val editText = view.findViewById<EditText>(R.id.search_edittxt)
             setTitle(getString(R.string.add_fav_dialog_title))
             setPositiveButton(getString(R.string.dialog_button_add)) { _, _ ->
-                val s = editText.text.toString()
-                if (hasMarker()){
+                val s = editText.text.toString().trim()
+                if (s.isEmpty()) {
+                    showToast("Vui lòng nhập tên địa điểm")
+                } else if (hasMarker()){
                   showToast(getString(R.string.location_not_select))
                 }else{
                     viewModel.storeFavorite(s, lat, lon)
-                    // Response will be handled silently
                 }
             }
+            setNegativeButton("Hủy", null)
             setView(view)
             show()
         }
     }
 
     private fun openFavoriteListDialog() {
-        getAllUpdatedFavList()
-        alertDialog = MaterialAlertDialogBuilder(this)
-        alertDialog.setTitle(getString(R.string.favorites))
-        val view = layoutInflater.inflate(R.layout.fav,null)
+        viewModel.doGetUserDetails()
+        val view = layoutInflater.inflate(R.layout.fav, null)
         val rcv = view.findViewById<RecyclerView>(R.id.favorites_list)
         rcv.layoutManager = LinearLayoutManager(this)
         rcv.adapter = favListAdapter
+        
+        val favDialog = MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.favorites))
+            .setView(view)
+            .create()
+            
         favListAdapter.onItemClick = {
-            it.let {
-                lat = it.lat!!
-                lon = it.lng!!
-            }
-            moveMapToNewLocation(true)
-            if (dialog.isShowing) dialog.dismiss()
-
+            lat = it.lat ?: 21.0285
+            lon = it.lng ?: 105.8542
+            moveMapToNewLocation(moveNewLocation = true, shouldMark = true)
+            favDialog.dismiss()
         }
-        favListAdapter.onItemDelete = {
-            viewModel.deleteFavorite(it)
+        favListAdapter.onItemDelete = { favorite ->
+            MaterialAlertDialogBuilder(this)
+                .setTitle("Xóa yêu thích")
+                .setMessage("Bạn có chắc chắn muốn xóa địa điểm '${favorite.address}'?")
+                .setPositiveButton("Xóa") { _, _ ->
+                    viewModel.deleteFavorite(favorite)
+                    showToast(" Đã xóa thành công")
+                }
+                .setNegativeButton("Hủy", null)
+                .show()
         }
-        alertDialog.setView(view)
-        dialog = alertDialog.create()
-        dialog.show()
-
-    }
-
-    private fun getAllUpdatedFavList(){
+        
         lifecycleScope.launch {
-            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED){
-                viewModel.doGetUserDetails()
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.allFavList.collect {
                     favListAdapter.submitList(it)
                 }
             }
         }
-
+        
+        favDialog.show()
     }
 
     private fun checkUpdates(){
-        lifecycleScope.launchWhenResumed {
-            viewModel.update.collect{
-                if (it!= null){
-                    updateDialog()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.update.collect{
+                    if (it != null) updateDialog()
                 }
             }
         }
     }
 
     private fun updateDialog(){
-        alertDialog = MaterialAlertDialogBuilder(this)
-        alertDialog.setTitle(R.string.update_available)
-        alertDialog.setMessage(update?.changelog)
-        alertDialog.setPositiveButton(getString(R.string.update_button)) { _, _ ->
-            MaterialAlertDialogBuilder(this).apply {
-                val view = layoutInflater.inflate(R.layout.update_dialog, null)
-                val progress = view.findViewById<LinearProgressIndicator>(R.id.update_download_progress)
-                val cancel = view.findViewById<AppCompatButton>(R.id.update_download_cancel)
-                setView(view)
-                cancel.setOnClickListener {
-                    viewModel.cancelDownload(getActivityInstance())
-                    dialog.dismiss()
-                }
-                lifecycleScope.launch {
-                    viewModel.downloadState.collect {
-                        when (it) {
-                            is MainViewModel.State.Downloading -> {
-                                if (it.progress > 0) {
-                                    progress.isIndeterminate = false
-                                    progress.progress = it.progress
-                                }
-                            }
-                            is MainViewModel.State.Done -> {
-                                viewModel.openPackageInstaller(getActivityInstance(), it.fileUri)
-                                viewModel.clearUpdate()
-                                dialog.dismiss()
-                            }
-                            is MainViewModel.State.Failed -> {
-                                Toast.makeText(
-                                    getActivityInstance(),
-                                    R.string.bs_update_download_failed,
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                dialog.dismiss()
-
-                            }
-                            else -> {}
-                        }
-                    }
-                }
-                update?.let { it ->
-                    viewModel.startDownload(getActivityInstance(), it)
-                } ?: run {
-                    dialog.dismiss()
-                }
-            }.run {
-                dialog = create()
-                dialog.show()
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.update_available)
+            .setMessage(viewModel.getAvailableUpdate()?.changelog)
+            .setPositiveButton(getString(R.string.update_button)) { _, _ ->
+                showDownloadProgressDialog()
             }
-        }
-        dialog = alertDialog.create()
-        dialog.show()
+            .setNegativeButton("Để sau", null)
+            .show()
     }
 
-    private suspend fun getSearchAddress(address: String) = callbackFlow {
-        withContext(Dispatchers.IO){
-            trySend(SearchProgress.Progress)
-            val matcher: Matcher =
-                Pattern.compile("[-+]?\\d{1,3}([.]\\d+)?, *[-+]?\\d{1,3}([.]\\d+)?").matcher(address)
-
-            if (matcher.matches()){
-                delay(3000)
-                trySend(SearchProgress.Complete(matcher.group().split(",")[0].toDouble(),matcher.group().split(",")[1].toDouble()))
-            }else {
-                val geocoder = Geocoder(getActivityInstance())
-                val addressList: List<Address>? = geocoder.getFromLocationName(address,3)
-
-                try {
-                    addressList?.let {
-                        if (it.size == 1){
-                           trySend(SearchProgress.Complete(addressList[0].latitude, addressList[0].longitude))
-                        }else {
-                            trySend(SearchProgress.Fail(getString(R.string.address_not_found)))
+    private fun showDownloadProgressDialog() {
+        val view = layoutInflater.inflate(R.layout.update_dialog, null)
+        val progress = view.findViewById<LinearProgressIndicator>(R.id.update_download_progress)
+        val cancel = view.findViewById<AppCompatButton>(R.id.update_download_cancel)
+        
+        val downloadDialog = MaterialAlertDialogBuilder(this)
+            .setView(view)
+            .setCancelable(false)
+            .create()
+            
+        cancel.setOnClickListener {
+            viewModel.cancelDownload(getActivityInstance())
+            downloadDialog.dismiss()
+        }
+        
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.downloadState.collect {
+                    when (it) {
+                        is MainViewModel.State.Downloading -> {
+                            if (it.progress > 0) {
+                                progress.isIndeterminate = false
+                                progress.progress = it.progress
+                            }
                         }
+                        is MainViewModel.State.Done -> {
+                            viewModel.openPackageInstaller(getActivityInstance(), it.fileUri)
+                            viewModel.clearUpdate()
+                            downloadDialog.dismiss()
+                        }
+                        is MainViewModel.State.Failed -> {
+                            showToast(getString(R.string.bs_update_download_failed))
+                            downloadDialog.dismiss()
+                        }
+                        else -> {}
                     }
-                } catch (io : IOException){
-                    trySend(SearchProgress.Fail(getString(R.string.no_internet)))
                 }
             }
         }
-        awaitClose { this.cancel() }
+        viewModel.getAvailableUpdate()?.let { viewModel.startDownload(getActivityInstance(), it) }
+        downloadDialog.show()
     }
 
     protected fun showStartNotification(address: String){
@@ -403,72 +350,61 @@ abstract class BaseMapActivity: AppCompatActivity() {
         notificationsChannel.cancelAllNotifications(this)
     }
 
-    // Get current location
     @SuppressLint("MissingPermission")
     protected fun getLastLocation() {
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        if (checkPermissions()) {
-            if (isLocationEnabled()) {
-                fusedLocationClient.lastLocation.addOnCompleteListener(this) { task ->
-                    val location: Location? = task.result
-                    if (location == null) {
-                        requestNewLocationData()
-                    } else {
-                        lat = location.latitude
-                        lon = location.longitude
-                        moveMapToNewLocation(true)
-                    }
-                }
-            } else {
-                showToast("Turn on location")
-                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                startActivity(intent)
-            }
-        } else {
+        if (!checkPermissions()) {
             requestPermissions()
+            return
+        }
+
+        if (!isLocationEnabled()) {
+            showToast("Vui lòng bật vị trí hệ thống")
+            startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            return
+        }
+
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                lat = location.latitude
+                lon = location.longitude
+                moveMapToNewLocation(moveNewLocation = true, shouldMark = false)
+            } else {
+                requestNewLocationData()
+            }
+        }.addOnFailureListener {
+            requestNewLocationData()
         }
     }
 
     @SuppressLint("MissingPermission")
     private fun requestNewLocationData() {
-        val mLocationRequest = LocationRequest()
-        mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        mLocationRequest.interval = 0
-        mLocationRequest.fastestInterval = 0
-        mLocationRequest.numUpdates = 1
-
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        fusedLocationClient.requestLocationUpdates(
-            mLocationRequest, mLocationCallback,
-            Looper.myLooper()
-        )
-    }
-
-    private val mLocationCallback = object : LocationCallback() {
-        override fun onLocationResult(locationResult: LocationResult) {
-            val mLastLocation: Location = locationResult.lastLocation!!
-            lat = mLastLocation.latitude
-            lon = mLastLocation.longitude
-        }
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+            .setMaxUpdates(1)
+            .build()
+            
+        fusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                val lastLocation = locationResult.lastLocation ?: return
+                lat = lastLocation.latitude
+                lon = lastLocation.longitude
+                moveMapToNewLocation(moveNewLocation = true, shouldMark = false)
+                fusedLocationClient.removeLocationUpdates(this)
+            }
+        }, Looper.getMainLooper())
     }
 
     private fun isLocationEnabled(): Boolean {
-        val locationManager: LocationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(
-            LocationManager.NETWORK_PROVIDER
-        )
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || 
+               locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
     }
 
-    private fun checkPermissions(): Boolean {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        ) {
-            return true
-        }
-        return false
+    fun checkPermissions(): Boolean {
+        return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
+               ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun requestPermissions() {
+    protected fun requestPermissions() {
         ActivityCompat.requestPermissions(
             this,
             arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION),
@@ -476,21 +412,10 @@ abstract class BaseMapActivity: AppCompatActivity() {
         )
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+        if (requestCode == PERMISSION_ID && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             getLastLocation()
         }
     }
-}
-
-sealed class SearchProgress {
-    object Progress : SearchProgress()
-    data class Complete(val lat: Double , val lon : Double) : SearchProgress()
-    data class Fail(val error: String?) : SearchProgress()
 }

@@ -9,6 +9,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.location.LocationRequest
 import android.os.Build
+import androidx.annotation.RequiresApi
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -397,6 +398,7 @@ object LocationHook {
      * This hooks Location API at app level without touching system
      * OPTIMIZED: Only hook essential methods to prevent app freeze
      */
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun hookApplicationLevel(lpparam: XC_LoadPackage.LoadPackageParam) {
         try {
             // Skip our own app and fused location provider
@@ -434,6 +436,7 @@ object LocationHook {
                     "set",
                     Location::class.java,
                     object : XC_MethodHook() {
+                        @RequiresApi(Build.VERSION_CODES.P)
                         override fun beforeHookedMethod(param: MethodHookParam) {
                             if (!settings.isStarted || ignorePkg.contains(lpparam.packageName)) return
                             

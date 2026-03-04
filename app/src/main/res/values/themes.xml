@@ -1,14 +1,41 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
     <style name="Theme.GPSSetter" parent="Theme.Material3.DayNight.NoActionBar">
-
+        <!-- Primary brand color. -->
         <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@android:color/white</item>
 
+        <!-- Status bar and navigation bar -->
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">@bool/lightStatusNav</item>
-        <item name="android:windowLightNavigationBar">@bool/lightStatusNav</item>
-        <item name="android:overScrollMode">@integer/overscroll_enabled</item>
-        <item name="actionOverflowMenuStyle">@style/GPSSetterOverflowMenu</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
 
+        <!-- Material 3 Shapes -->
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.GPSSetter.SmallComponent</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.GPSSetter.MediumComponent</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.GPSSetter.LargeComponent</item>
+        <!-- Note: ExtraLargeComponent might not be available in all Material 3 versions, 
+             so we define it as a standalone style if needed or use Large. -->
+
+        <item name="actionOverflowMenuStyle">@style/GPSSetterOverflowMenu</item>
     </style>
+
+    <style name="ShapeAppearance.GPSSetter.SmallComponent" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <style name="ShapeAppearance.GPSSetter.MediumComponent" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerSize">20dp</item>
+    </style>
+
+    <style name="ShapeAppearance.GPSSetter.LargeComponent" parent="ShapeAppearance.Material3.LargeComponent">
+        <item name="cornerSize">28dp</item>
+    </style>
+
+    <!-- Custom Extra Large style for specific views -->
+    <style name="ShapeAppearance.GPSSetter.ExtraLarge" parent="ShapeAppearance.Material3.LargeComponent">
+        <item name="cornerSize">36dp</item>
+    </style>
+
 </resources>

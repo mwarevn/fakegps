@@ -4,59 +4,38 @@ import io.github.mwarevn.movingsimulation.BuildConfig
 
 class Xshare {
 
-    private var xPref: XSharedPreferences? = null
-
-    private fun pref() : XSharedPreferences {
-        xPref = XSharedPreferences(BuildConfig.APPLICATION_ID,"${BuildConfig.APPLICATION_ID}_prefs")
-        return xPref as XSharedPreferences
+    private val xPref: XSharedPreferences by lazy {
+        val pref = XSharedPreferences(BuildConfig.APPLICATION_ID, "${BuildConfig.APPLICATION_ID}_prefs")
+        pref.makeWorldReadable()
+        pref
     }
 
-    val isStarted : Boolean
-    get() = pref().getBoolean(
-        "start",
-        false
-    )
+    private fun getPref(): XSharedPreferences {
+        xPref.reload()
+        return xPref
+    }
+
+    val isStarted: Boolean
+        get() = getPref().getBoolean("start", false)
 
     val getLat: Double
-    get() = pref().getFloat(
-        "latitude",
-        45.0000000.toFloat()
-    ).toDouble()
+        get() = getPref().getFloat("latitude", 45.0000000f).toDouble()
 
+    val getLng: Double
+        get() = getPref().getFloat("longitude", 0.0000000f).toDouble()
 
-    val getLng : Double
-    get() = pref().getFloat(
-        "longitude",
-        0.0000000.toFloat()
-    ).toDouble()
+    val getBearing: Float
+        get() = getPref().getFloat("bearing", 0f)
 
-    val getBearing : Float
-    get() = pref().getFloat(
-        "bearing",
-        0F
-    )
+    val getSpeed: Float
+        get() = getPref().getFloat("speed", 0f)
 
-    val getSpeed : Float
-    get() = pref().getFloat(
-        "speed",
-        0F
-    )
+    val isHookedSystem: Boolean
+        get() = getPref().getBoolean("system_hooked", false)
 
-    val isHookedSystem : Boolean
-    get() = pref().getBoolean(
-        "system_hooked",
-        false  // CRITICAL: Default to FALSE to prevent bootloop
-    )
+    val isRandomPosition: Boolean
+        get() = getPref().getBoolean("random_position", false)
 
-    val isRandomPosition :Boolean
-    get() = pref().getBoolean(
-        "random_position",
-        false
-    )
-
-    val accuracy : String?
-    get() = pref().getString("accuracy_level","10")
-
-    val reload = pref().reload()
-
+    val accuracy: String?
+        get() = getPref().getString("accuracy_level", "10")
 }
