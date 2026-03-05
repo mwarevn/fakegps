@@ -493,8 +493,7 @@
                 app:srcCompat="@drawable/ic_location_on"
                 app:backgroundTint="?attr/colorSurface"
                 app:elevation="2dp"
-                app:maxImageSize="26dp"
-                app:tint="?attr/colorPrimary"/>
+                app:maxImageSize="26dp"/>
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/getlocation"

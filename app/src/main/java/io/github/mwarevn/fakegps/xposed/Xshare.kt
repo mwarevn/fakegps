@@ -11,32 +11,34 @@ class Xshare {
         pref
     }
 
-    private fun getPref(): XSharedPreferences {
+    /**
+     * Chỉ nạp lại file từ ổ cứng khi module yêu cầu (có kiểm soát thời gian)
+     */
+    fun reload() {
         xPref.reload()
-        return xPref
     }
 
     val isStarted: Boolean
-        get() = getPref().getBoolean("start", false)
+        get() = xPref.getBoolean("start", false)
 
     val getLat: Double
-        get() = getPref().getFloat("latitude", 45.0000000f).toDouble()
+        get() = xPref.getFloat("latitude", 21.0285f).toDouble()
 
     val getLng: Double
-        get() = getPref().getFloat("longitude", 0.0000000f).toDouble()
+        get() = xPref.getFloat("longitude", 105.8542f).toDouble()
 
     val getBearing: Float
-        get() = getPref().getFloat("bearing", 0f)
+        get() = xPref.getFloat("bearing", 0f)
 
     val getSpeed: Float
-        get() = getPref().getFloat("speed", 0f)
+        get() = xPref.getFloat("speed", 0f)
 
     val isHookedSystem: Boolean
-        get() = getPref().getBoolean("system_hooked", false)
+        get() = xPref.getBoolean("system_hooked", false)
 
     val isRandomPosition: Boolean
-        get() = getPref().getBoolean("random_position", false)
+        get() = xPref.getBoolean("random_position", false)
 
     val accuracy: String?
-        get() = getPref().getString("accuracy_level", "10")
+        get() = xPref.getString("accuracy_level", "12")
 }

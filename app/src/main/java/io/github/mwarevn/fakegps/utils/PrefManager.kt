@@ -36,6 +36,7 @@ object PrefManager {
     private val pref: SharedPreferences by lazy {
         val prefsFile = "${BuildConfig.APPLICATION_ID}_prefs"
         try {
+            // Attempt to use World Readable for Xposed compatibility
             gsApp.getSharedPreferences(prefsFile, Context.MODE_WORLD_READABLE)
         } catch (e: SecurityException) {
             gsApp.getSharedPreferences(prefsFile, Context.MODE_PRIVATE)
@@ -44,13 +45,16 @@ object PrefManager {
 
     val sharedPreferences: SharedPreferences get() = pref
 
-    private fun fixPermissions() {
+    /**
+     * CRITICAL for Xposed: Make sure the XML file is readable by other apps
+     */
+    fun fixPermissions() {
         try {
             val dataDir = gsApp.applicationInfo.dataDir
             val prefsDir = File(dataDir, "shared_prefs")
             val prefsFile = File(prefsDir, "${BuildConfig.APPLICATION_ID}_prefs.xml")
             if (prefsFile.exists()) {
-                prefsFile.setReadable(true, false)
+                prefsFile.setReadable(true, false) // Readable by everyone
                 prefsDir.setExecutable(true, false)
                 prefsDir.setReadable(true, false)
             }
@@ -71,60 +75,62 @@ object PrefManager {
 
     var isSystemHooked: Boolean
         get() = pref.getBoolean(HOOKED_SYSTEM, false)
-        set(value) { pref.edit().putBoolean(HOOKED_SYSTEM, value).apply(); fixPermissions() }
+        set(value) { pref.edit().putBoolean(HOOKED_SYSTEM, value).commit(); fixPermissions() }
 
     var isRandomPosition: Boolean
         get() = pref.getBoolean(RANDOM_POSITION, false)
-        set(value) { pref.edit().putBoolean(RANDOM_POSITION, value).apply(); fixPermissions() }
+        set(value) { pref.edit().putBoolean(RANDOM_POSITION, value).commit(); fixPermissions() }
 
     var accuracy: String?
         get() = pref.getString(ACCURACY_SETTING, "10")
-        set(value) { pref.edit().putString(ACCURACY_SETTING, value).apply(); fixPermissions() }
+        set(value) { pref.edit().putString(ACCURACY_SETTING, value).commit(); fixPermissions() }
 
     var mapType: Int
         get() = pref.getInt(MAP_TYPE, 1)
-        set(value) { pref.edit().putInt(MAP_TYPE, value).apply() }
+        set(value) { pref.edit().putInt(MAP_TYPE, value).commit() }
 
     var darkTheme: Int
         get() = pref.getInt(DARK_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-        set(value) { pref.edit().putInt(DARK_THEME, value).apply() }
+        set(value) { pref.edit().putInt(DARK_THEME, value).commit() }
 
-    // FIXED: Default to FALSE so update is ENABLED by default
     var isUpdateDisabled: Boolean
-        get() = pref.getBoolean(DISABLE_UPDATE, false)
-        set(value) { pref.edit().putBoolean(DISABLE_UPDATE, value).apply() }
+        get() = pref.getBoolean(DISABLE_UPDATE, false) // Default is FALSE (Check for updates is ENABLED)
+        set(value) { pref.edit().putBoolean(DISABLE_UPDATE, value).commit() }
 
     var isJoystickEnabled: Boolean
         get() = pref.getBoolean(ENABLE_JOYSTICK, false)
-        set(value) { pref.edit().putBoolean(ENABLE_JOYSTICK, value).apply(); fixPermissions() }
+        set(value) { pref.edit().putBoolean(ENABLE_JOYSTICK, value).commit(); fixPermissions() }
 
     var mapBoxApiKey: String?
         get() = pref.getString(MAPBOX_API_KEY, null)
-        set(value) { pref.edit().putString(MAPBOX_API_KEY, value).apply() }
+        set(value) { pref.edit().putString(MAPBOX_API_KEY, value).commit() }
 
     var vehicleType: String
         get() = pref.getString(VEHICLE_TYPE, "MOTORBIKE") ?: "MOTORBIKE"
-        set(value) { pref.edit().putString(VEHICLE_TYPE, value).apply() }
+        set(value) { pref.edit().putString(VEHICLE_TYPE, value).commit() }
 
     var autoCurveSpeed: Boolean
         get() = pref.getBoolean(AUTO_CURVE_SPEED, true)
-        set(value) { pref.edit().putBoolean(AUTO_CURVE_SPEED, value).apply() }
+        set(value) { pref.edit().putBoolean(AUTO_CURVE_SPEED, value).commit() }
 
     var navControlsExpanded: Boolean
         get() = pref.getBoolean(NAV_CONTROLS_EXPANDED, true)
-        set(value) { pref.edit().putBoolean(NAV_CONTROLS_EXPANDED, value).apply() }
+        set(value) { pref.edit().putBoolean(NAV_CONTROLS_EXPANDED, value).commit() }
 
+    /**
+     * Update location and sync to disk immediately
+     */
     fun update(start: Boolean, la: Double, ln: Double, bearing: Float = 0F, speed: Float = 0F) {
-        runInBackground {
-            pref.edit().apply {
-                putFloat(LATITUDE, la.toFloat())
-                putFloat(LONGITUDE, ln.toFloat())
-                putFloat(BEARING, bearing)
-                putFloat(SPEED, speed)
-                putBoolean(START, start)
-            }.commit()
-            fixPermissions()
-        }
+        // Use commit() instead of apply() to ensure data is written to disk immediately
+        // so XSharedPreferences can pick it up.
+        pref.edit().apply {
+            putFloat(LATITUDE, la.toFloat())
+            putFloat(LONGITUDE, ln.toFloat())
+            putFloat(BEARING, bearing)
+            putFloat(SPEED, speed)
+            putBoolean(START, start)
+        }.commit()
+        fixPermissions()
     }
 
     @OptIn(DelicateCoroutinesApi::class)
