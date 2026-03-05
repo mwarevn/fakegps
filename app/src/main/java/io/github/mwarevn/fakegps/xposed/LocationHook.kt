@@ -1,11 +1,13 @@
 package io.github.mwarevn.fakegps.xposed
 
 import android.annotation.SuppressLint
+import android.content.ContentResolver
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.provider.Settings
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -37,8 +39,7 @@ object LocationHook {
     private fun updateLocation(force: Boolean = false) {
         try {
             val now = System.currentTimeMillis()
-            // Tối ưu cho GPS tĩnh: nếu không random thì cập nhật chậm lại (2s)
-            val interval = if (settings.isRandomPosition) 300 else 2000
+            val interval = if (settings.isRandomPosition) 400 else 1500
             
             if (force || now - mLastUpdated > interval) {
                 settings.reload()
@@ -50,8 +51,8 @@ object LocationHook {
                     val lng = settings.getLng
                     
                     if (settings.isRandomPosition) {
-                        val x = (rand.nextInt(16) - 8).toDouble()
-                        val y = (rand.nextInt(16) - 8).toDouble()
+                        val x = (rand.nextInt(12) - 6).toDouble()
+                        val y = (rand.nextInt(12) - 6).toDouble()
                         val dlat = x / earth
                         val dlng = y / (earth * cos(pi * lat / 180.0))
                         newlat = lat + (dlat * 180.0 / pi)
@@ -61,9 +62,8 @@ object LocationHook {
                         newlng = lng
                     }
                     
-                    accuracy = settings.accuracy?.toFloatOrNull() ?: 12f
+                    accuracy = settings.accuracy?.toFloatOrNull() ?: 10f
                     
-                    // Lấy Bearing và Speed thực tế từ SpeedSyncManager (nếu đang chạy route)
                     val syncedBearing = SpeedSyncManager.getBearing()
                     bearing = if (syncedBearing != 0f) syncedBearing else settings.getBearing
                     
@@ -94,7 +94,6 @@ object LocationHook {
                 location.speedAccuracyMetersPerSecond = 0.1f
             }
 
-            // Ép xóa cờ Mock bằng cách set mask nội bộ (Full mask = 255)
             try {
                 HiddenApiBypass.invoke(Location::class.java, location, "setFieldsMask", 255)
             } catch (e: Throwable) {
@@ -119,22 +118,56 @@ object LocationHook {
 
     @SuppressLint("NewApi")
     fun initHooks(lpparam: XC_LoadPackage.LoadPackageParam) {
+        updateLocation(true)
+
+        // Tầng 1: Fake Settings toàn cục cho mọi app trong scope (Local check bypass)
+        hookSystemSettings(lpparam)
+
+        // Tầng 2: Hook đặc thù cho từng loại package
         if (lpparam.packageName == "android") {
-            updateLocation(true)
-            if (isStartedCache && settings.isHookedSystem) {
-                hookSystemServer(lpparam)
-            }
+            hookSystemServer(lpparam)
             return
         }
 
         if (ignorePkg.contains(lpparam.packageName)) return
 
-        // Hook GMS Core - Cực kỳ quan trọng cho các app hiện đại
         if (lpparam.packageName == "com.google.android.gms") {
             hookGmsCore(lpparam)
         }
 
+        // Tầng 3: Hook sâu mức ứng dụng (Getters, Wifi, Request Updates)
         hookApplicationLevel(lpparam)
+    }
+
+    private fun hookSystemSettings(lpparam: XC_LoadPackage.LoadPackageParam) {
+        try {
+            val settingsSecure = Settings.Secure::class.java
+            
+            // Hook tất cả các overload của getInt/getString trong Settings.Secure
+            XposedBridge.hookAllMethods(settingsSecure, "getInt", object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    if (isHookActive() && settings.isAccuracySpoofEnabled) {
+                        val name = param.args[1] as? String ?: return
+                        when (name) {
+                            "location_mode" -> param.result = 3 // Settings.Secure.LOCATION_MODE_HIGH_ACCURACY
+                            "location_accuracy_enabled" -> param.result = 1
+                            "network_location_opt_in" -> param.result = 1
+                        }
+                    }
+                }
+            })
+
+            XposedBridge.hookAllMethods(settingsSecure, "getString", object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    if (isHookActive() && settings.isAccuracySpoofEnabled) {
+                        val name = param.args[1] as? String ?: return
+                        if (name == "location_providers_allowed") {
+                            param.result = "gps,network"
+                        }
+                    }
+                }
+            })
+        } catch (e: Throwable) { }
     }
 
     private fun hookSystemServer(lpparam: XC_LoadPackage.LoadPackageParam) {
@@ -142,36 +175,39 @@ object LocationHook {
             val lmsClassName = if (Build.VERSION.SDK_INT >= 34) 
                 "com.android.server.location.LocationManagerService" 
                 else "com.android.server.LocationManagerService"
-            val lmsClass = XposedHelpers.findClass(lmsClassName, lpparam.classLoader)
+            val lmsClass = XposedHelpers.findClassIfExists(lmsClassName, lpparam.classLoader)
             
-            XposedBridge.hookAllMethods(lmsClass, "getLastLocation", object : XC_MethodHook() {
-                override fun beforeHookedMethod(param: MethodHookParam) {
-                    updateLocation()
-                    if (isStartedCache) {
-                        val loc = Location(LocationManager.GPS_PROVIDER)
-                        setLocationFields(loc)
-                        param.result = loc
-                    }
-                }
-            })
-
-            // Hook báo cáo vị trí (Android 12+)
-            try {
-                val lpmClass = XposedHelpers.findClass("com.android.server.location.provider.LocationProviderManager", lpparam.classLoader)
-                XposedBridge.hookAllMethods(lpmClass, "onReportLocation", object : XC_MethodHook() {
+            if (lmsClass != null) {
+                XposedBridge.hookAllMethods(lmsClass, "getLastLocation", object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         updateLocation()
                         if (isStartedCache) {
-                            val arg = param.args[0] ?: return
-                            if (arg is Location) {
-                                setLocationFields(arg)
-                            } else if (arg.javaClass.name.contains("LocationResult")) {
-                                val locations = XposedHelpers.callMethod(arg, "getLocations") as? List<*>
-                                locations?.forEach { (it as? Location)?.let { loc -> setLocationFields(loc) } }
-                            }
+                            val loc = Location(LocationManager.GPS_PROVIDER)
+                            setLocationFields(loc)
+                            param.result = loc
                         }
                     }
                 })
+            }
+
+            try {
+                val lpmClass = XposedHelpers.findClassIfExists("com.android.server.location.provider.LocationProviderManager", lpparam.classLoader)
+                if (lpmClass != null) {
+                    XposedBridge.hookAllMethods(lpmClass, "onReportLocation", object : XC_MethodHook() {
+                        override fun beforeHookedMethod(param: MethodHookParam) {
+                            updateLocation()
+                            if (isStartedCache) {
+                                val arg = param.args[0] ?: return
+                                if (arg is Location) {
+                                    setLocationFields(arg)
+                                } else if (arg.javaClass.name.contains("LocationResult")) {
+                                    val locations = XposedHelpers.callMethod(arg, "getLocations") as? List<*>
+                                    locations?.forEach { (it as? Location)?.let { loc -> setLocationFields(loc) } }
+                                }
+                            }
+                        }
+                    })
+                }
             } catch (e: Throwable) { }
         } catch (e: Throwable) { }
     }
@@ -199,9 +235,9 @@ object LocationHook {
     private fun hookApplicationLevel(lpparam: XC_LoadPackage.LoadPackageParam) {
         try {
             val locClass = Location::class.java
-            val lmClass = XposedHelpers.findClass("android.location.LocationManager", lpparam.classLoader)
+            val lmClass = XposedHelpers.findClassIfExists("android.location.LocationManager", lpparam.classLoader) ?: return
 
-            // Getters cơ bản
+            // Hook Getters của object Location
             XposedHelpers.findAndHookMethod(locClass, "getLatitude", object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam) { if (isHookActive()) param.result = newlat }
             })
@@ -212,7 +248,7 @@ object LocationHook {
                 override fun beforeHookedMethod(param: MethodHookParam) { if (isHookActive()) param.result = false }
             })
 
-            // Hook Location.set() - Cực kỳ quan trọng vì app thường copy object
+            // Chặn app copy location gốc
             XposedHelpers.findAndHookMethod(locClass, "set", Location::class.java, object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam) {
                     if (isHookActive()) {
@@ -222,7 +258,7 @@ object LocationHook {
                 }
             })
 
-            // Hook LocationManager level
+            // Tự động fake kết quả trả về từ LocationManager
             XposedBridge.hookAllMethods(lmClass, "getLastKnownLocation", object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam) {
                     if (isHookActive()) {
@@ -237,41 +273,46 @@ object LocationHook {
                 override fun beforeHookedMethod(param: MethodHookParam) {
                     updateLocation()
                     if (!isStartedCache) return
-                    val listenerIdx = param.args.indexOfFirst { it is android.location.LocationListener }
-                    if (listenerIdx != -1) {
-                        val original = param.args[listenerIdx] as android.location.LocationListener
-                        if (original.javaClass.name.contains("io.github.mwarevn")) return
-                        
-                        param.args[listenerIdx] = object : android.location.LocationListener {
-                            override fun onLocationChanged(location: Location) {
-                                updateLocation()
-                                setLocationFields(location)
-                                try { original.onLocationChanged(location) } catch (e: Throwable) {}
-                            }
-
-                            // Thêm hỗ trợ cho API mới nhận danh sách Location
-                            override fun onLocationChanged(locations: List<Location>) {
-                                locations.forEach { onLocationChanged(it) }
-                            }
+                    
+                    for (i in param.args.indices) {
+                        val arg = param.args[i] ?: continue
+                        if (arg is android.location.LocationListener) {
+                            val original = arg
+                            if (original.javaClass.name.contains("io.github.mwarevn")) return
                             
-                            @Suppress("DEPRECATION")
-                            override fun onStatusChanged(p: String?, s: Int, e: Bundle?) = try { original.onStatusChanged(p, s, e) } catch (e: Throwable) {}
-                            
-                            override fun onProviderEnabled(p: String) = try { original.onProviderEnabled(p) } catch (e: Throwable) {}
-                            override fun onProviderDisabled(p: String) = try { original.onProviderDisabled(p) } catch (e: Throwable) {}
+                            param.args[i] = object : android.location.LocationListener {
+                                override fun onLocationChanged(location: Location) {
+                                    updateLocation()
+                                    setLocationFields(location)
+                                    try { original.onLocationChanged(location) } catch (e: Throwable) {}
+                                }
+                                override fun onLocationChanged(locations: List<Location>) {
+                                    locations.forEach { onLocationChanged(it) }
+                                }
+                                @Suppress("DEPRECATION")
+                                override fun onStatusChanged(p: String?, s: Int, e: Bundle?) = try { original.onStatusChanged(p, s, e) } catch (e: Throwable) {}
+                                override fun onProviderEnabled(p: String) = try { original.onProviderEnabled(p) } catch (e: Throwable) {}
+                                override fun onProviderDisabled(p: String) = try { original.onProviderDisabled(p) } catch (e: Throwable) {}
+                            }
+                            break
                         }
                     }
                 }
             })
-            
-            try {
-                val wmClass = XposedHelpers.findClass("android.net.wifi.WifiManager", lpparam.classLoader)
-                XposedHelpers.findAndHookMethod(wmClass, "getScanResults", object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        if (isHookActive()) param.result = emptyList<android.net.wifi.ScanResult>()
+
+            // Chống định vị qua Wifi (Nếu option được bật)
+            if (settings.isNetworkSimEnabled) {
+                try {
+                    val wmClass = XposedHelpers.findClassIfExists("android.net.wifi.WifiManager", lpparam.classLoader)
+                    if (wmClass != null) {
+                        XposedHelpers.findAndHookMethod(wmClass, "getScanResults", object : XC_MethodHook() {
+                            override fun beforeHookedMethod(param: MethodHookParam) {
+                                if (isHookActive()) param.result = emptyList<android.net.wifi.ScanResult>()
+                            }
+                        })
                     }
-                })
-            } catch (e: Throwable) {}
+                } catch (e: Throwable) {}
+            }
 
         } catch (e: Throwable) { }
     }

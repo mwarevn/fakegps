@@ -32,6 +32,11 @@ object PrefManager {
     private const val VEHICLE_TYPE = "vehicle_type"
     private const val AUTO_CURVE_SPEED = "auto_curve_speed"
     private const val NAV_CONTROLS_EXPANDED = "nav_controls_expanded"
+    
+    // Anti-Detection Keys
+    private const val SENSOR_SPOOF = "sensor_spoof"
+    private const val NETWORK_SIMULATION = "network_sim"
+    private const val ACCURACY_SPOOF = "accuracy_spoof"
 
     private val pref: SharedPreferences by lazy {
         val prefsFile = "${BuildConfig.APPLICATION_ID}_prefs"
@@ -45,16 +50,13 @@ object PrefManager {
 
     val sharedPreferences: SharedPreferences get() = pref
 
-    /**
-     * CRITICAL for Xposed: Make sure the XML file is readable by other apps
-     */
     fun fixPermissions() {
         try {
             val dataDir = gsApp.applicationInfo.dataDir
             val prefsDir = File(dataDir, "shared_prefs")
             val prefsFile = File(prefsDir, "${BuildConfig.APPLICATION_ID}_prefs.xml")
             if (prefsFile.exists()) {
-                prefsFile.setReadable(true, false) // Readable by everyone
+                prefsFile.setReadable(true, false)
                 prefsDir.setExecutable(true, false)
                 prefsDir.setReadable(true, false)
             }
@@ -85,6 +87,19 @@ object PrefManager {
         get() = pref.getString(ACCURACY_SETTING, "10")
         set(value) { pref.edit().putString(ACCURACY_SETTING, value).commit(); fixPermissions() }
 
+    // Anti-Detection Options
+    var isSensorSpoofEnabled: Boolean
+        get() = pref.getBoolean(SENSOR_SPOOF, true)
+        set(value) { pref.edit().putBoolean(SENSOR_SPOOF, value).commit(); fixPermissions() }
+
+    var isNetworkSimEnabled: Boolean
+        get() = pref.getBoolean(NETWORK_SIMULATION, true)
+        set(value) { pref.edit().putBoolean(NETWORK_SIMULATION, value).commit(); fixPermissions() }
+
+    var isAccuracySpoofEnabled: Boolean
+        get() = pref.getBoolean(ACCURACY_SPOOF, true)
+        set(value) { pref.edit().putBoolean(ACCURACY_SPOOF, value).commit(); fixPermissions() }
+
     var mapType: Int
         get() = pref.getInt(MAP_TYPE, 1)
         set(value) { pref.edit().putInt(MAP_TYPE, value).commit() }
@@ -94,7 +109,7 @@ object PrefManager {
         set(value) { pref.edit().putInt(DARK_THEME, value).commit() }
 
     var isUpdateDisabled: Boolean
-        get() = pref.getBoolean(DISABLE_UPDATE, false) // Default is FALSE (Check for updates is ENABLED)
+        get() = pref.getBoolean(DISABLE_UPDATE, false)
         set(value) { pref.edit().putBoolean(DISABLE_UPDATE, value).commit() }
 
     var isJoystickEnabled: Boolean
@@ -117,12 +132,7 @@ object PrefManager {
         get() = pref.getBoolean(NAV_CONTROLS_EXPANDED, true)
         set(value) { pref.edit().putBoolean(NAV_CONTROLS_EXPANDED, value).commit() }
 
-    /**
-     * Update location and sync to disk immediately
-     */
     fun update(start: Boolean, la: Double, ln: Double, bearing: Float = 0F, speed: Float = 0F) {
-        // Use commit() instead of apply() to ensure data is written to disk immediately
-        // so XSharedPreferences can pick it up.
         pref.edit().apply {
             putFloat(LATITUDE, la.toFloat())
             putFloat(LONGITUDE, ln.toFloat())
@@ -131,10 +141,5 @@ object PrefManager {
             putBoolean(START, start)
         }.commit()
         fixPermissions()
-    }
-
-    @OptIn(DelicateCoroutinesApi::class)
-    private fun runInBackground(method: suspend () -> Unit) {
-        GlobalScope.launch(Dispatchers.IO) { method.invoke() }
     }
 }

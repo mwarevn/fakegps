@@ -38,6 +38,17 @@
             android:key="joystick_enabled"
             android:defaultValue="false" />
 
+        <!-- Anti-Detection Menu -->
+        <Preference
+            android:title="Anti-Detection"
+            android:summary="Advanced spoofing &amp; bypass settings"
+            android:icon="@drawable/ic_advanced_hook"
+            android:key="anti_detection_menu">
+            <intent android:action="android.intent.action.VIEW"
+                android:targetPackage="io.github.mwarevn.fakegps"
+                android:targetClass="io.github.mwarevn.fakegps.ui.AntiDetectionSettingsActivity" />
+        </Preference>
+
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/xposed">

@@ -11,11 +11,10 @@ class Xshare {
         pref
     }
 
-    /**
-     * Chỉ nạp lại file từ ổ cứng khi module yêu cầu (có kiểm soát thời gian)
-     */
     fun reload() {
-        xPref.reload()
+        if (xPref.hasFileChanged()) {
+            xPref.reload()
+        }
     }
 
     val isStarted: Boolean
@@ -40,5 +39,15 @@ class Xshare {
         get() = xPref.getBoolean("random_position", false)
 
     val accuracy: String?
-        get() = xPref.getString("accuracy_level", "12")
+        get() = xPref.getString("accuracy_level", "10")
+
+    // Anti-Detection Settings
+    val isSensorSpoofEnabled: Boolean
+        get() = xPref.getBoolean("sensor_spoof", true)
+
+    val isNetworkSimEnabled: Boolean
+        get() = xPref.getBoolean("network_sim", true)
+
+    val isAccuracySpoofEnabled: Boolean
+        get() = xPref.getBoolean("accuracy_spoof", true)
 }
