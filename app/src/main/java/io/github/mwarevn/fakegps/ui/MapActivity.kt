@@ -51,6 +51,7 @@ import com.mapbox.maps.plugin.animation.easeTo
 import io.github.mwarevn.fakegps.network.RoutingService
 import io.github.mwarevn.fakegps.network.OsrmClient
 import io.github.mwarevn.fakegps.domain.route.RouteExtractorFactory
+import com.mapbox.maps.plugin.scalebar.scalebar
 
 /**
  * Clean redesigned MapActivity with Google Maps-like UX
@@ -83,7 +84,7 @@ class MapActivity : BaseMapActivity() {
     private var currentStartPos: LatLng? = null
     private var currentDestPos: LatLng? = null
     private var currentNavigationPosition: LatLng? = null
-    private var previousLocation: LatLng? = null // FIX: Re-added missing variable
+    private var previousLocation: LatLng? = null
     private var routingPoints: List<LatLng> = emptyList()
     private val completedPathPoints: MutableList<LatLng> = mutableListOf()
     
@@ -262,6 +263,10 @@ class MapActivity : BaseMapActivity() {
     override fun initializeMap() {
         val map = binding.root.findViewById<com.mapbox.maps.MapView>(R.id.mapView)
         mapView = map; mapboxMap = map.mapboxMap
+        
+        // Disable ScaleBar
+        map.scalebar.enabled = false
+        
         val polylineAnnotationManager = map.annotations.createPolylineAnnotationManager()
         val pointAnnotationManager = map.annotations.createPointAnnotationManager()
         polylineAnnotationManager.lineCap = LineCap.ROUND; polylineAnnotationManager.lineJoin = LineJoin.ROUND
