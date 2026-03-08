@@ -17,10 +17,10 @@ class RouteSimulator(
 
     // Cấu hình giảm tốc độ khi cua
     companion object {
-        private const val MIN_SPEED_KMH = 5.0
-        private const val CURVE_SPEED_MAX = 40.0 // Tốc độ tối đa khi cua góc rộng
-        private const val SMOOTH_FACTOR = 0.15 // Tốc độ thay đổi (acceleration/deceleration)
-        private const val LOOK_AHEAD_POINTS = 3 // Số điểm nhìn trước để đoán cua
+        private const val MIN_SPEED_KMH = 8.0 // Tăng tốc độ tối thiểu lên một chút
+        private const val SMOOTH_FACTOR_DECEL = 0.12 // Giảm tốc từ từ hơn
+        private const val SMOOTH_FACTOR_ACCEL = 0.25 // Tăng tốc lại nhanh hơn cho tự nhiên
+        private const val LOOK_AHEAD_POINTS = 2 // Giảm số điểm nhìn trước để không giảm tốc quá sớm
     }
 
     init {
@@ -60,10 +60,10 @@ class RouteSimulator(
         }
 
         return when {
-            maxAngleChange > 70 -> 10.0 // Cua cực gắt (U-turn)
-            maxAngleChange > 45 -> 18.0 // Cua gắt
-            maxAngleChange > 25 -> 28.0 // Cua vừa
-            maxAngleChange > 10 -> 38.0 // Cua nhẹ
+            maxAngleChange > 80 -> 12.0 // Cua cực gắt (U-turn)
+            maxAngleChange > 60 -> 20.0 // Cua gắt
+            maxAngleChange > 35 -> 32.0 // Cua vừa
+            maxAngleChange > 15 -> 42.0 // Cua nhẹ
             else -> targetSpeedKmh // Đường thẳng
         }.coerceAtMost(targetSpeedKmh)
     }
@@ -90,11 +90,8 @@ class RouteSimulator(
                     val recommendedSpeed = getRecommendedSpeedForCurve(points, idx)
                     
                     // 2. Thay đổi tốc độ từ từ (Smooth Transition)
-                    if (currentActualSpeedKmh < recommendedSpeed) {
-                        currentActualSpeedKmh += (recommendedSpeed - currentActualSpeedKmh) * SMOOTH_FACTOR
-                    } else if (currentActualSpeedKmh > recommendedSpeed) {
-                        currentActualSpeedKmh -= (currentActualSpeedKmh - recommendedSpeed) * SMOOTH_FACTOR
-                    }
+                    val factor = if (currentActualSpeedKmh < recommendedSpeed) SMOOTH_FACTOR_ACCEL else SMOOTH_FACTOR_DECEL
+                    currentActualSpeedKmh += (recommendedSpeed - currentActualSpeedKmh) * factor
                     
                     currentActualSpeedKmh = currentActualSpeedKmh.coerceIn(MIN_SPEED_KMH, targetSpeedKmh)
 

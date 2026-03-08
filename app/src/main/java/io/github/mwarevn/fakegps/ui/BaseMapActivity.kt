@@ -35,7 +35,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.*
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.progressindicator.LinearProgressIndicator
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.mwarevn.fakegps.BuildConfig
 import io.github.mwarevn.fakegps.R
@@ -82,7 +81,6 @@ abstract class BaseMapActivity: AppCompatActivity() {
         
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         
-        // Initialize default coordinates (Hanoi)
         lat = 21.0285
         lon = 105.8542
         
@@ -90,7 +88,6 @@ abstract class BaseMapActivity: AppCompatActivity() {
         observeAppStatus()
         checkAppAvailability()
         checkModuleEnabled()
-        checkUpdates()
         setupNavView()
         setupButtons()
         setupDrawer()
@@ -119,7 +116,7 @@ abstract class BaseMapActivity: AppCompatActivity() {
                         is MainViewModel.AppStatus.NoInternet -> {
                             showExitDialog("Không có internet", "Vui lòng kiểm tra kết nối internet để sử dụng ứng dụng.")
                         }
-                        else -> { /* Checking, Allowed, Error handled silently */ }
+                        else -> { }
                     }
                 }
             }
@@ -185,7 +182,6 @@ abstract class BaseMapActivity: AppCompatActivity() {
             true
         }
         
-        // Initialize Toggle State
         val showFakeIconItem = binding.navView.menu.findItem(R.id.show_fake_icon)
         val showFakeIconSwitch = showFakeIconItem.actionView as? androidx.appcompat.widget.SwitchCompat
         showFakeIconSwitch?.isChecked = PrefManager.isShowFakeIcon
@@ -286,70 +282,6 @@ abstract class BaseMapActivity: AppCompatActivity() {
         }
         
         favDialog.show()
-    }
-
-    private fun checkUpdates(){
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.update.collect{
-                    if (it != null) updateDialog()
-                }
-            }
-        }
-    }
-
-    private fun updateDialog(){
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.update_available)
-            .setMessage(viewModel.getAvailableUpdate()?.changelog)
-            .setPositiveButton(getString(R.string.update_button)) { _, _ ->
-                showDownloadProgressDialog()
-            }
-            .setNegativeButton("Để sau", null)
-            .show()
-    }
-
-    private fun showDownloadProgressDialog() {
-        val view = layoutInflater.inflate(R.layout.update_dialog, null)
-        val progress = view.findViewById<LinearProgressIndicator>(R.id.update_download_progress)
-        val cancel = view.findViewById<AppCompatButton>(R.id.update_download_cancel)
-        
-        val downloadDialog = MaterialAlertDialogBuilder(this)
-            .setView(view)
-            .setCancelable(false)
-            .create()
-            
-        cancel.setOnClickListener {
-            viewModel.cancelDownload(getActivityInstance())
-            downloadDialog.dismiss()
-        }
-        
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.downloadState.collect {
-                    when (it) {
-                        is MainViewModel.State.Downloading -> {
-                            if (it.progress > 0) {
-                                progress.isIndeterminate = false
-                                progress.progress = it.progress
-                            }
-                        }
-                        is MainViewModel.State.Done -> {
-                            viewModel.openPackageInstaller(getActivityInstance(), it.fileUri)
-                            viewModel.clearUpdate()
-                            downloadDialog.dismiss()
-                        }
-                        is MainViewModel.State.Failed -> {
-                            showToast(getString(R.string.bs_update_download_failed))
-                            downloadDialog.dismiss()
-                        }
-                        else -> {}
-                    }
-                }
-            }
-        }
-        viewModel.getAvailableUpdate()?.let { viewModel.startDownload(getActivityInstance(), it) }
-        downloadDialog.show()
     }
 
     protected fun showStartNotification(address: String){

@@ -68,6 +68,7 @@ class MapActivity : BaseMapActivity() {
         const val FAKE_LOCATION_FILL_COLOR = 0x50FF4500.toInt()
         const val FAKE_LOCATION_CENTER_COLOR = 0xFFFF4500.toInt()
         private const val CAMERA_UPDATE_INTERVAL_MS = 1000L
+        private const val DEFAULT_NAV_SPEED = 45.0
     }
 
     private lateinit var mapController: IMapController
@@ -93,7 +94,7 @@ class MapActivity : BaseMapActivity() {
     private var lastJoystickLon = 0.0
     private var lastCameraUpdateTime = 0L
     private var isCameraFollowing = true
-    private var currentSpeed = 52.0
+    private var currentSpeed = DEFAULT_NAV_SPEED
     private var totalRouteDistanceKm = 0.0
     private var traveledDistanceKm = 0.0
     private var lastDistancePosition: LatLng? = null
@@ -146,9 +147,37 @@ class MapActivity : BaseMapActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         isGpsSet = viewModel.isStarted
-        viewModel.doGetUserDetails(); observeFavorites(); observeRoute()
+        viewModel.doGetUserDetails(); observeFavorites(); observeRoute(); observeUpdates()
         Intent(this, LocationService::class.java).also { bindService(it, serviceConnection, Context.BIND_AUTO_CREATE) }
         handleIntent(intent)
+    }
+
+    private fun observeUpdates() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.update.collect { update ->
+                    if (update != null) {
+                        showUpdateRequiredDialog(update.assetUrl)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showUpdateRequiredDialog(downloadUrl: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Cập nhật bắt buộc")
+            .setMessage("Đã có phiên bản mới. Vui lòng cập nhật để tiếp tục sử dụng ứng dụng.")
+            .setCancelable(false)
+            .setPositiveButton("Cập nhật") { _, _ ->
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
+                startActivity(intent)
+                finishAffinity()
+            }
+            .setNegativeButton("Thoát") { _, _ ->
+                finishAffinity()
+            }
+            .show()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -249,6 +278,13 @@ class MapActivity : BaseMapActivity() {
                         binding.routeLoadingCard.visibility = View.GONE
                         binding.actionButton.apply { text = "Bắt đầu"; setIconResource(R.drawable.ic_navigation); visibility = View.VISIBLE }
                         binding.cancelRouteButton.apply { text = "Huỷ"; visibility = View.VISIBLE }
+                    } else {
+                        routingPoints = emptyList()
+                        mapController.clearRoute()
+                        if (currentMode == AppMode.SEARCH) {
+                            binding.actionButton.visibility = View.GONE
+                            binding.cancelRouteButton.visibility = View.GONE
+                        }
                     }
                 }
             }
@@ -263,10 +299,7 @@ class MapActivity : BaseMapActivity() {
     override fun initializeMap() {
         val map = binding.root.findViewById<com.mapbox.maps.MapView>(R.id.mapView)
         mapView = map; mapboxMap = map.mapboxMap
-        
-        // Disable ScaleBar
         map.scalebar.enabled = false
-        
         val polylineAnnotationManager = map.annotations.createPolylineAnnotationManager()
         val pointAnnotationManager = map.annotations.createPointAnnotationManager()
         polylineAnnotationManager.lineCap = LineCap.ROUND; polylineAnnotationManager.lineJoin = LineJoin.ROUND
@@ -371,6 +404,13 @@ class MapActivity : BaseMapActivity() {
 
     override fun setupButtons() {
         isGpsSet = viewModel.isStarted; updateSetLocationButton()
+        
+        binding.speedSlider.apply {
+            valueFrom = 0f
+            valueTo = 500f
+            stepSize = 1f
+        }
+
         binding.actionButton.setOnClickListener {
             when (currentMode) {
                 AppMode.SEARCH -> if (mapController.hasDestinationMarker()) enterRoutePlanMode() else showToast("Vui lòng chọn điểm đến")
@@ -399,7 +439,7 @@ class MapActivity : BaseMapActivity() {
         }
         binding.addFavoriteButton.setOnClickListener { mapController.getDestinationPosition()?.let { pos -> showAddFavoriteDialog(pos) } }
         binding.cameraFollowToggle.setOnClickListener { if (isDriving) { isCameraFollowing = !isCameraFollowing; updateCameraFollowButton() } }
-        binding.speedSlider.addOnChangeListener { _, value, fromUser -> if (fromUser) { currentSpeed = if (isDriving && value <= 0) 1.0 else value.toDouble(); updateSpeedLabel(currentSpeed); locationService?.setSpeed(currentSpeed) } }
+        binding.speedSlider.addOnChangeListener { _, value, fromUser -> if (fromUser) { currentSpeed = value.toDouble(); updateSpeedLabel(currentSpeed); locationService?.setSpeed(currentSpeed) } }
         binding.autoCurveSpeedCheckbox.isChecked = PrefManager.autoCurveSpeed
         binding.autoCurveSpeedCheckbox.setOnCheckedChangeListener { _, isChecked -> PrefManager.autoCurveSpeed = isChecked }
         binding.pauseButton.setOnClickListener { if (isDriving && !isPaused) locationService?.pauseSimulation() }
@@ -537,9 +577,14 @@ class MapActivity : BaseMapActivity() {
     private fun updateMarkersDraggableState() { val canDrag = currentMode != AppMode.NAVIGATION && !isDriving; mapController.setDestinationDraggable(canDrag); mapController.setStartDraggable(currentMode == AppMode.ROUTE_PLAN && canDrag) }
 
     private fun swapStartAndDestination() {
-        val sPos = currentStartPos ?: return; val dPos = currentDestPos ?: return; val sText = binding.startSearch.text.toString(); val dText = binding.destinationSearch.text.toString()
-        currentStartPos = dPos; currentDestPos = sPos; mapController.clearRoute(); mapController.setStartMarker(currentStartPos!!, false); mapController.setDestinationMarker(currentDestPos!!, false)
-        binding.startSearch.setText(dText); binding.destinationSearch.setText(sText); if (currentMode == AppMode.ROUTE_PLAN) drawRoute()
+        val sPos = currentStartPos ?: return; val dPos = currentDestPos ?: return
+        val sText = binding.startSearch.text.toString(); val dText = binding.destinationSearch.text.toString()
+        currentStartPos = dPos; currentDestPos = sPos
+        mapController.clearRoute()
+        mapController.setStartMarker(currentStartPos!!, true)
+        mapController.setDestinationMarker(currentDestPos!!, true)
+        binding.startSearch.setText(dText); binding.destinationSearch.setText(sText)
+        if (currentMode == AppMode.ROUTE_PLAN) { hasSelectedStartPoint = true; drawRoute() }
     }
 
     private fun drawRoute(showLoading: Boolean = true) {
@@ -553,6 +598,7 @@ class MapActivity : BaseMapActivity() {
 
     private fun cancelRoutePlan() {
         mapController.clearRoute(); mapController.clearStartMarker()
+        viewModel.clearRoute()
         binding.startSearch.text.clear(); binding.startSearchContainer.visibility = View.GONE; binding.useCurrentLocationContainer.visibility = View.GONE
         binding.routeLoadingCard.visibility = View.GONE; binding.routeErrorCard.visibility = View.GONE; currentMode = AppMode.SEARCH; hasSelectedStartPoint = false
         updateActionButtonsVisibility(); binding.searchCard.visibility = View.VISIBLE; updateSwapButtonVisibility()
@@ -561,6 +607,11 @@ class MapActivity : BaseMapActivity() {
     private fun startNavigation() {
         if (routingPoints.isEmpty()) return
         isDriving = true; isPaused = false; currentMode = AppMode.NAVIGATION; completedPathPoints.clear(); completedPathPoints.add(routingPoints.first())
+        
+        currentSpeed = DEFAULT_NAV_SPEED
+        binding.speedSlider.value = DEFAULT_NAV_SPEED.toFloat()
+        updateSpeedLabel(currentSpeed)
+
         binding.actionButton.visibility = View.GONE; binding.navigationControlsCard.visibility = View.VISIBLE; binding.cancelRouteButton.visibility = View.GONE; binding.addFavoriteButton.visibility = View.GONE
         binding.searchCard.visibility = View.GONE; binding.swapButtonContainer.visibility = View.GONE; binding.getFakeLocation.visibility = View.GONE; binding.setLocationButton.visibility = View.GONE; binding.replaceLocationButton.visibility = View.GONE
         updateNavigationAddresses(); updateNavControlButtons(); isCameraFollowing = true; binding.cameraFollowToggle.visibility = View.VISIBLE; updateCameraFollowButton()
@@ -612,7 +663,7 @@ class MapActivity : BaseMapActivity() {
     private fun updateTraveledDistance(pos: LatLng) { lastDistancePosition?.let { val d = distanceBetween(it, pos); if (d in 0.5..100.0) { traveledDistanceKm += d / 1000.0; updateDistanceLabel() } }; lastDistancePosition = pos }
 
     private fun onNavigationComplete() {
-        isDriving = false; isPaused = false; binding.speedSlider.value = 52f; currentSpeed = 52.0; binding.speedLabel.text = "52 km/h"
+        isDriving = false; isPaused = false; binding.speedSlider.value = 45f; currentSpeed = 45.0; binding.speedLabel.text = "45 km/h"
         binding.navigationControlsCard.visibility = View.GONE; binding.cameraFollowToggle.visibility = View.GONE
         (currentNavigationPosition ?: routingPoints.lastOrNull() ?: mapController.getDestinationPosition())?.let { finalPos ->
             currentFakeLocationPos = finalPos; viewModel.update(true, finalPos.latitude, finalPos.longitude)
@@ -622,15 +673,16 @@ class MapActivity : BaseMapActivity() {
     }
 
     private fun clearActiveNavigationData() {
+        viewModel.clearRoute()
+        routingPoints = emptyList()
         mapController.clearRoute(); mapController.clearStartMarker(); mapController.clearDestinationMarker()
-        completedPathPoints.clear(); routingPoints = emptyList(); currentMode = AppMode.SEARCH; hasSelectedStartPoint = false
+        completedPathPoints.clear(); currentMode = AppMode.SEARCH; hasSelectedStartPoint = false
         currentStartPos = null; currentDestPos = null; currentNavigationPosition = null
-        
         binding.actionButton.visibility = View.GONE; binding.navigationControlsCard.visibility = View.GONE; binding.cameraFollowToggle.visibility = View.GONE
         binding.completionActionsCard.visibility = View.GONE; binding.startSearchContainer.visibility = View.GONE; binding.useCurrentLocationContainer.visibility = View.GONE
+        binding.cancelRouteButton.visibility = View.GONE
         binding.destinationSearch.text.clear(); binding.startSearch.text.clear(); binding.searchCard.visibility = View.VISIBLE
         binding.addFavoriteButton.visibility = View.GONE; binding.routeLoadingCard.visibility = View.GONE; binding.routeErrorCard.visibility = View.GONE
-        
         updateSetLocationButton(); updateMarkersDraggableState()
     }
 
