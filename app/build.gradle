@@ -43,13 +43,18 @@ android {
     signingConfigs {
        release {
            def keystorePropertiesFile = rootProject.file("local.properties")
-           def keystoreProperties = new Properties()
-           keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+           if (keystorePropertiesFile.exists()) {
+               def keystoreProperties = new Properties()
+               keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 
-           keyAlias keystoreProperties['KEY_ALIAS']
-           keyPassword keystoreProperties['KEY_PASSWORD']
-           storeFile file(keystoreProperties['KEYSTORE_PATH'])
-           storePassword keystoreProperties['KEYSTORE_PASSWORD']
+               keyAlias keystoreProperties['KEY_ALIAS']
+               keyPassword keystoreProperties['KEY_PASSWORD']
+               def keystorePath = keystoreProperties['KEYSTORE_PATH']
+               if (keystorePath != null) {
+                   storeFile file(keystorePath)
+               }
+               storePassword keystoreProperties['KEYSTORE_PASSWORD']
+           }
        }
     }
 
@@ -58,7 +63,9 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            }
         }
         debug {
             minifyEnabled false
@@ -81,8 +88,6 @@ android {
 
 dependencies {
 
-//    compileOnly 'com.github.deltazefiro:XposedBridge:main-SNAPSHOT'
-
     implementation 'com.mapbox.maps:android-ndk27:11.19.0'
 
     compileOnly files("libs/api-hookbridge.jar")
@@ -90,7 +95,6 @@ dependencies {
 
     implementation 'com.google.android.gms:play-services-location:21.0.1'
     implementation 'com.google.android.gms:play-services-maps:18.1.0'
-
 
     implementation 'androidx.core:core-ktx:1.9.0'
     implementation 'androidx.appcompat:appcompat:1.7.0-alpha01'
@@ -115,5 +119,7 @@ dependencies {
     // retrofit
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+
+    implementation 'com.github.lukkass222:virtual-joystick-android:1.13.5'
 
 }
